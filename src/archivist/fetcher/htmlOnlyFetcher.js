@@ -51,6 +51,7 @@ export default async function fetch(url, config) {
     return {
       mimeType,
       content,
+      finalUrl: response.url, // Node-fetch follows redirections and exposes the URL of the last response
     };
   } catch (error) {
     if (error.type == 'system') { // Node-fetch wraps system-level errors (ENOTFOUND, ECONNREFUSED, ECONNRESET, etc.) with type 'system' and includes the original error code

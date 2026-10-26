@@ -61,6 +61,15 @@ describe('Fetcher', function () {
         if (request.url.startsWith('/redirect-loop')) {
           response.writeHead(302, { Location: `/redirect-loop?token=${redirectCount++}` });
         }
+        if (request.url === '/moved') {
+          response.writeHead(301, { Location: '/' });
+        }
+        if (request.url === '/moved-pdf') {
+          response.writeHead(302, { Location: '/terms.pdf' });
+        }
+        if (request.url === '/client-side-redirect') {
+          response.writeHead(200, { 'Content-Type': 'text/html' }).write('<!DOCTYPE html><html><head><script>window.location.replace("/");</script></head><body></body></html>');
+        }
         if (request.url === '/always-block') {
           response.writeHead(403, { 'Content-Type': 'text/html' }).write('<!DOCTYPE html><html><body>Access Denied - Bot Detected</body></html>');
         }
@@ -203,6 +212,110 @@ describe('Fetcher', function () {
 
         it('returns the fetcher used to fetch the PDF file', () => {
           expect(fetcher).to.equal(FETCHER_TYPES.HTML_ONLY);
+        });
+      });
+
+      context('when URL is not redirected', () => {
+        const url = `http://127.0.0.1:${SERVER_PORT}/other-charset`;
+        let finalUrl;
+
+        before(async () => {
+          ({ finalUrl } = await fetch({ url, cssSelectors: 'body' }));
+        });
+
+        it('returns the requested URL as final URL', () => {
+          expect(finalUrl).to.equal(url);
+        });
+
+        context('with client script enabled', () => {
+          before(async () => {
+            ({ finalUrl } = await fetch({ url, cssSelectors: 'body', executeClientScripts: true }));
+          });
+
+          it('returns the requested URL as final URL', () => {
+            expect(finalUrl).to.equal(url);
+          });
+        });
+      });
+
+      context('when URL is redirected by the server', () => {
+        const url = `http://127.0.0.1:${SERVER_PORT}/moved`;
+        const expectedFinalUrl = `http://127.0.0.1:${SERVER_PORT}/`;
+        let content;
+        let finalUrl;
+
+        before(async () => {
+          ({ content, finalUrl } = await fetch({ url, cssSelectors: 'body' }));
+        });
+
+        it('returns the content of the redirection target', () => {
+          expect(content).to.equal(termsHTML);
+        });
+
+        it('returns the URL of the redirection target as final URL', () => {
+          expect(finalUrl).to.equal(expectedFinalUrl);
+        });
+
+        context('with client script enabled', () => {
+          before(async () => {
+            ({ content, finalUrl } = await fetch({ url, cssSelectors: 'body', executeClientScripts: true }));
+          });
+
+          it('returns the content of the redirection target', () => {
+            expect(content).to.equal(termsHTML);
+          });
+
+          it('returns the URL of the redirection target as final URL', () => {
+            expect(finalUrl).to.equal(expectedFinalUrl);
+          });
+        });
+
+        context('when redirection targets a PDF file', () => {
+          const pdfUrl = `http://127.0.0.1:${SERVER_PORT}/moved-pdf`;
+          const expectedFinalPdfUrl = `http://127.0.0.1:${SERVER_PORT}/terms.pdf`;
+
+          before(async () => {
+            ({ finalUrl } = await fetch({ url: pdfUrl }));
+          });
+
+          it('returns the URL of the PDF file as final URL', () => {
+            expect(finalUrl).to.equal(expectedFinalPdfUrl);
+          });
+
+          context('with client script enabled', () => {
+            before(async () => {
+              ({ finalUrl } = await fetch({ url: pdfUrl, executeClientScripts: true }));
+            });
+
+            it('returns the URL of the PDF file as final URL', () => {
+              expect(finalUrl).to.equal(expectedFinalPdfUrl);
+            });
+          });
+        });
+      });
+
+      context('when URL is redirected by a client script', () => {
+        const url = `http://127.0.0.1:${SERVER_PORT}/client-side-redirect`;
+        let finalUrl;
+
+        context('with client script enabled', () => {
+          before(async () => {
+            ({ finalUrl } = await fetch({ url, cssSelectors: 'h1', executeClientScripts: true }));
+          });
+
+          it('returns the URL the client script navigated to as final URL', () => {
+            expect(finalUrl).to.equal(`http://127.0.0.1:${SERVER_PORT}/`);
+          });
+        });
+
+        context('with client script disabled', () => {
+          before(async () => {
+            ({ finalUrl } = await fetch({ url, cssSelectors: 'h1' }));
+          });
+
+          it('returns the requested URL as final URL, as client scripts are not executed', () => {
+            expect(finalUrl).to.equal(url);
+          });
         });
       });
 

@@ -74,6 +74,7 @@ export default async function fetch(url, cssSelectors, config) {
         return {
           mimeType: 'application/pdf',
           content: pdf.content,
+          finalUrl: pdf.url,
         };
       }
 
@@ -101,6 +102,7 @@ export default async function fetch(url, cssSelectors, config) {
     return {
       mimeType: 'text/html',
       content: await page.content(),
+      finalUrl: page.url(), // Read after the page has loaded, so that navigations triggered by client scripts or meta refresh are taken into account
     };
   } catch (error) {
     if (error.name === 'TimeoutError') {
@@ -228,11 +230,11 @@ async function captureUserAgentOverride(browser, locale) { // The stealth evasio
 }
 
 async function setupPdfInterception(client) {
-  const pdf = { content: null, status: null };
+  const pdf = { content: null, status: null, url: null };
   let onHandled;
   const handled = new Promise(resolve => { onHandled = resolve; });
 
-  client.on('Fetch.requestPaused', async ({ requestId, resourceType, responseHeaders, responseStatusCode }) => {
+  client.on('Fetch.requestPaused', async ({ requestId, request, resourceType, responseHeaders, responseStatusCode }) => {
     try {
       const contentType = responseHeaders?.find(header => header.name.toLowerCase() === 'content-type')?.value;
 
@@ -241,6 +243,7 @@ async function setupPdfInterception(client) {
       }
 
       pdf.status = responseStatusCode;
+      pdf.url = request.url;
 
       if (!isValidHttpStatus(responseStatusCode)) {
         return;
