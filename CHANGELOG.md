@@ -9,6 +9,7 @@ All changes that impact users of this module are documented in this file, in the
 ### Added
 
 - Expose the URL a fetch ends on after redirections, including those made by client scripts, as `finalUrl` in the result of the `@opentermsarchive/engine/fetch` module
+- Add a script that reports the URL each declared URL of a collection ends on after redirections; see [its documentation](./scripts/declarations/redirects/README.md)
 
 ## 17.0.0 - 2026-10-14
 
